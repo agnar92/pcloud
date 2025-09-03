@@ -1,0 +1,45 @@
+{
+  "name": "kiosk-electron",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Electron refactor of PWA kiosk app",
+  "main": "src/main/main.js",
+  "author": "Refactor Bot",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build:linux": "electron-builder -l AppImage --x64"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.example.kiosk",
+    "productName": "Kiosk",
+    "directories": { "buildResources": "build" },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Utility",
+      "icon": "build/icons"
+    }
+  }
+}
