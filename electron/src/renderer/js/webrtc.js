@@ -20,12 +20,30 @@ export async function startSession(server, cfg, status) {
     if (ev.track.kind === 'video' && videoEl) {
       videoEl.srcObject = ev.streams[0];
     }
+    if (ev.track.kind === 'audio') {
+      const audioEl = document.getElementById('audio');
+      if (audioEl) {
+        audioEl.srcObject = ev.streams[0];
+        audioEl.play();
+      }
+    }
   };
 
+
+
   // DataChannel for input
-  inputDC = pc.createDataChannel('input', {ordered:true});
+  inputDC = pc.createDataChannel('input', {ordered: true, maxRetransmits: 0}); // Use unreliable for low latency
   inputDC.onopen  = () => status?.('Input channel open');
   inputDC.onerror = e  => console.warn('input dc error', e);
+  inputDC.onerror = e  => {
+    console.warn('input dc error', e);
+    status?.(`Input channel error: ${e.message}`);
+  };
+
+  //Platform specific settings
+  if (navigator.platform.indexOf('Linux') > -1) {
+    cfg.codec = 'VP8'; // Or 'VP9'
+  }
 
   // Prefer codec (best-effort)
   try {
@@ -51,6 +69,11 @@ export async function startSession(server, cfg, status) {
     })
   });
   if (!res.ok) throw new Error(`offer failed ${res.status}: ${await res.text().catch(()=> '')}`);
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => '');
+    const errorMessage = `offer failed ${res.status}: ${errorText}`;
+    throw new Error(errorMessage);
+  }
   const ans = await res.json();
   await pc.setRemoteDescription(ans);
 
@@ -75,6 +98,12 @@ export async function startSession(server, cfg, status) {
     });
     statsCb?.(out || 'fps:- jitter:- br:-kB');
   }, 1000);
+} catch (error) {
+  console.error("Error starting session:", error);
+  status?.(`Error starting session: ${error.message}`);
+  try { pc && pc.close(); } catch(_) {}
+  pc = null;
+}
 }
 
 export async function endSession(server) {
@@ -82,6 +111,8 @@ export async function endSession(server) {
   try { pc && pc.close(); } catch(_) {}
   pc = null;
   if (videoEl?.srcObject) {
+    console.log("Stopping video tracks");
+
     videoEl.srcObject.getTracks().forEach(t => t.stop());
     videoEl.srcObject = null;
   }
@@ -91,23 +122,21 @@ export async function endSession(server) {
 
 function send(type, payload){
   if (inputDC && inputDC.readyState === 'open') {
+    // Note: The 'gp' event is now sent from here, not the separate gamepad.js streamer
     inputDC.send(JSON.stringify({t:type, ...payload, ts:performance.now()}));
   }
 }
 
-// Map page mouse coords to normalized video coords [0..1] inside displayed video rect.
 function mapMouseToVideo(e) {
   if (!videoEl) return {x:0, y:0, inside:false};
   const rect = videoEl.getBoundingClientRect();
   const relX = e.clientX - rect.left;
   const relY = e.clientY - rect.top;
 
-  // Intrinsic video size (fallback to 16:9 if not ready yet)
   const vw = videoEl.videoWidth  || 1920;
   const vh = videoEl.videoHeight || 1080;
   const ar = vw / vh;
 
-  // Object-fit aware displayed content box inside rect
   const rw = rect.width, rh = rect.height;
   let dispW, dispH, offX = 0, offY = 0;
   const fit = getComputedStyle(videoEl).objectFit || 'contain';
@@ -118,7 +147,7 @@ function mapMouseToVideo(e) {
   } else if (fit === 'cover') {
     if (rw / rh > ar) { dispW = rw; dispH = rw / ar; offY = (rh - dispH)/2; }
     else              { dispH = rh; dispW = rh * ar; offX = (rw - dispW)/2; }
-  } else { // fill
+  } else {
     dispW = rw; dispH = rh;
   }
 
@@ -126,11 +155,9 @@ function mapMouseToVideo(e) {
   const y = (relY - offY) / dispH;
   const inside = x >= 0 && x <= 1 && y >= 0 && y <= 1;
 
-  // clamp
   return { x: Math.max(0, Math.min(1, x)), y: Math.max(0, Math.min(1, y)), inside };
 }
 
-// Throttle mousemove via rAF (send last sample only)
 let lastMove = null, rafPending = false;
 function onMouseMove(e){
   lastMove = e;
@@ -155,15 +182,16 @@ function onMouseUp(e){
   send('mup', {b:e.button, x:m.x, y:m.y});
 }
 function onWheel(e){
-  // do NOT preventDefault globally; allow page scroll when panel open
   send('mwheel', {dx:e.deltaX, dy:e.deltaY});
 }
 
 function onKeyDown(e){
   if (!e.repeat) send('kdown', {k:e.code});
+  e.preventDefault(); // Prevent default browser actions for keys
 }
 function onKeyUp(e){
   send('kup', {k:e.code});
+  e.preventDefault();
 }
 
 let inputsBound = false;
@@ -171,19 +199,17 @@ function attachInputsRD(){
   if (inputsBound || !videoEl) return;
   inputsBound = true;
 
-  videoEl.style.cursor = 'default';  // ensure visible cursor
+  videoEl.style.cursor = 'none';
 
-  // Mouse & wheel on the video element
   videoEl.addEventListener('mousemove', onMouseMove);
   videoEl.addEventListener('mousedown', onMouseDown);
   videoEl.addEventListener('mouseup',   onMouseUp);
-  videoEl.addEventListener('wheel',     onWheel, {passive:true});
+  videoEl.addEventListener('wheel',     onWheel, {passive:false}); // passive:false to allow preventDefault
+  videoEl.addEventListener('contextmenu', e => e.preventDefault()); // Disable right-click menu
 
-  // Keyboard on window
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup',   onKeyUp);
 
-  // Gamepad loop (120Hz by rAF, send only changes)
   let lastPad = '';
   function gpStep(){
     const pads = navigator.getGamepads?.() || [];
@@ -195,9 +221,9 @@ function attachInputsRD(){
         buttons: p.buttons.map(b => b.pressed?1:0)
       };
       const s = JSON.stringify(msg);
-      if (s !== lastPad) { send('gp', msg); lastPad = s; }
+      if (s !== lastPad) { send('gp', {gp: msg}); lastPad = s; }
     }
-    requestAnimationFrame(gpStep);
+    if (pc) requestAnimationFrame(gpStep);
   }
   requestAnimationFrame(gpStep);
 }

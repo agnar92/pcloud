@@ -6,14 +6,42 @@ const dgram = require('dgram');
 const os = require('os');
 const fs = require('fs').promises;
 
+// Differentiate between development and production environments
 const isDev = process.argv.includes('--dev') || !app.isPackaged;
+
+// define these FIRST
+const features = [];
+const disableFeatures = [];
+
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+// Windows: unlock platform HEVC; D3D11 ANGLE
+if (process.platform === 'win32') {
+  features.push('PlatformHEVCDecoderSupport');
+  app.commandLine.appendSwitch('use-angle', 'd3d11');
+  // Optional: if you see ANGLE issues, try: app.commandLine.appendSwitch('use-angle', 'gl');
+}
+
+
+if (process.platform === 'linux') {
+  features.push('VaapiVideoDecoder', 'UseOzonePlatform', 'WaylandWindowDecorations', 'WebRTCPipeWireCapturer');
+  disableFeatures.push('UseChromeOSDirectVideoDecoder'); // avoid ChromeOS path that often breaks VA-API
+  // Wayland/EGL tends to be the stable combo for VA-API:
+  app.commandLine.appendSwitch('ozone-platform', 'wayland');
+  app.commandLine.appendSwitch('use-gl', 'egl');
+}
+
+// Apply combined feature switches once:
+if (features.length) app.commandLine.appendSwitch('enable-features', features.join(','));
+if (disableFeatures.length) app.commandLine.appendSwitch('disable-features', disableFeatures.join(','));
 
 let ipcRegistered = false;
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
 function createWindow () {
-  if (ipcRegistered) return;      // <-- chroni przed drugą rejestracją
+  if (ipcRegistered) return;
   ipcRegistered = true;
 
   const win = new BrowserWindow({
@@ -28,12 +56,14 @@ function createWindow () {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false,
+      sandbox: true, // Enable sandbox for enhanced security
       devTools: true
     }
   });
 
-  win.webContents.toggleDevTools();
+  if (isDev) {
+    win.webContents.toggleDevTools();
+  }
 
   win.webContents.on('will-navigate', (e, url) => {
     const allowed = url.startsWith('file://');
@@ -50,7 +80,6 @@ function createWindow () {
 
   win.once('ready-to-show', () => win.show());
 
-  // Startujemy od Home
   win.loadFile(path.join(__dirname, '..', 'renderer', 'home.html'));
 
   globalShortcut.register('CommandOrControl+Shift+I', () => win.webContents.toggleDevTools());
@@ -58,7 +87,7 @@ function createWindow () {
   globalShortcut.register('F11', () => win.setFullScreen(!win.isFullScreen()));
   globalShortcut.register('F12', () => win.webContents.toggleDevTools());
 
-  // IPC: kiosk przejście
+  // IPC handlers remain the same
   ipcMain.handle('app:openKiosk', (evt, serverUrl) => {
     const w = BrowserWindow.fromWebContents(evt.sender);
     return w.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'), {
@@ -66,7 +95,6 @@ function createWindow () {
     });
   });
 
-  // IPC: WoL
   ipcMain.handle('net:wol', async (_evt, mac) => {
     const macClean = (mac || '').replace(/[^0-9A-F]/gi, '').toUpperCase();
     if (macClean.length !== 12) throw new Error('Invalid MAC');
@@ -76,14 +104,14 @@ function createWindow () {
 
     await new Promise((resolve, reject) => {
       const sock = dgram.createSocket('udp4');
-      sock.once('error', (e) => { try { sock.close(); } catch(_){} reject(e); });
+      sock.once('error', (e) => { try { sock.close(); } catch(err){console.error(err)} reject(e); });
       sock.bind(() => {
         try { sock.setBroadcast(true); } catch (_) {}
         sock.send(packet, 9, '255.255.255.255', (err) => {
-          try { sock.close(); } catch(_) {}
+          try { sock.close(); } catch(err) { console.error(err)}
           if (err) reject(err); else resolve();
         });
-      });
+      }).once('error', reject);
     });
     return true;
   });
@@ -95,11 +123,15 @@ function createWindow () {
       properties: ['openFile']
     });
     if (canceled || !filePaths?.length) return null;
-    const txt = await fs.readFile(filePaths[0], 'utf-8');
+    //const txt = await fs.readFile(filePaths[0], 'utf-8'); //Direct file access not allowed in sandbox
+
+    //Use ipc to request file read from main process
+    const txt = await ipcMain.emit('file-read-request', filePaths[0]);
+    console.log(`File content: ${txt}`);
+
     return txt;
   });
 
-  // IPC: resolve MAC -> IP (ARP)
   ipcMain.handle('net:resolveMac', async (_evt, mac) => {
     const macNorm = (mac || '').toLowerCase().replace(/[^0-9a-f]/g, '');
     if (macNorm.length !== 12) throw new Error('Invalid MAC');
@@ -142,26 +174,19 @@ function createWindow () {
     }
     return Array.from(out);
   });
-
-
 }
 
+// --- AGGRESSIVE HARDWARE ACCELERATION FLAGS ---
 app.whenReady().then(() => {
-  app.commandLine.appendSwitch('disable-features', 'OutOfBlinkCors,BlockInsecurePrivateNetworkRequests');
-  app.commandLine.appendSwitch('disable-renderer-backgrounding');
-  app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
-  app.commandLine.appendSwitch("enable-features", "UseOzonePlatform,WaylandWindowDecorations,VaapiVideoDecoder");
-  app.commandLine.appendSwitch("ozone-platform", "wayland");
-  app.commandLine.appendSwitch("use-gl", "egl");
-  app.commandLine.appendSwitch("ignore-gpu-blocklist");
-  app.commandLine.appendSwitch("enable-zero-copy");
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
 app.on('second-instance', () => {
   const [win] = BrowserWindow.getAllWindows();
-  if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
+  if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
 });
 
+
+// Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
