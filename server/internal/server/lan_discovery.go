@@ -1,62 +1,64 @@
-//go:build windows || linux || darwin
-
 package server
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"net"
-	"time"
+	"strings"
 )
 
-const lanPort = 35853 // UDP
+const lanPort = ":9876:"
 
-type lanMsg struct {
-	T    string `json:"t"`    // "disc" | "ann"
-	V    int    `json:"v"`    // 1
-	Dev  string `json:"dev"`  // device_id
-	Port int    `json:"port"` // http/healthz port hosta
-	Tok  string `json:"tok"`  // lan_token
+func getLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return ""
 }
 
-// StartLANDiscoveryResponder: nasłuchuje DISC i odpowiada ANN (unicast).
-// Wywołaj raz przy starcie serwera, po wczytaniu identity.
-func StartLANDiscoveryResponder(deviceID, lanToken string, httpPort int) error {
-	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf(":%d", lanPort))
+func StartLANDiscoveryResponder() {
+	addr, err := net.ResolveUDPAddr("udp", lanPort)
 	if err != nil {
-		return err
-	}
-	conn, err := net.ListenUDP("udp4", addr)
-	if err != nil {
-		return err
+		log.Println("LAN discovery resolve error:", err)
+		return
 	}
 
-	// krótkie ogłoszenie po starcie (3x broadcast)
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		log.Println("LAN discovery listen error:", err)
+		return
+	}
+
 	go func() {
 		defer conn.Close()
-		ann := lanMsg{T: "ann", V: 1, Dev: deviceID, Port: httpPort, Tok: lanToken}
-		b, _ := json.Marshal(ann)
-		bcast := &net.UDPAddr{IP: net.IPv4bcast, Port: lanPort}
-		for i := 0; i < 3; i++ {
-			_, _ = conn.WriteToUDP(b, bcast)
-			time.Sleep(400 * time.Millisecond)
-		}
-		buf := make([]byte, 2048)
+		buf := make([]byte, 1024)
+
 		for {
-			n, raddr, err := conn.ReadFromUDP(buf)
+			n, remoteAddr, err := conn.ReadFromUDP(buf)
 			if err != nil {
-				return
-			}
-			var m lanMsg
-			if json.Unmarshal(buf[:n], &m) != nil {
 				continue
 			}
-			if m.T == "disc" && m.V == 1 && m.Dev == deviceID && (lanToken == "" || m.Tok == lanToken) {
-				// unicast ANN do pytającego
-				_, _ = conn.WriteToUDP(b, raddr)
+
+			msg := strings.TrimSpace(string(buf[:n]))
+			if msg == "DISCOVER_PCCLOUD" {
+				resp := map[string]interface{}{
+					"id":      "steam-pc",
+					"name":    "Gaming PC",
+					"status":  "online",
+					"address": getLocalIP(), // your function
+				}
+
+				jsonData, _ := json.Marshal(resp)
+				conn.WriteToUDP(jsonData, remoteAddr)
 			}
 		}
 	}()
-
-	return nil
 }

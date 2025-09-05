@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -124,6 +125,8 @@ func BuildFFmpegPipeCmd(ctx context.Context, p Params) (*exec.Cmd, string /*vide
 
 	args = append(args, "-filter_complex", filterComplex)
 
+	bufsize, _ := strconv.ParseInt(strings.TrimSuffix(p.Bitrate, "M"), 10, 0)
+
 	// --- VIDEO to stdout (elementary stream) ---
 	args = append(args,
 		"-map", "[vout]",
@@ -132,9 +135,13 @@ func BuildFFmpegPipeCmd(ctx context.Context, p Params) (*exec.Cmd, string /*vide
 		"-tune", "ll",
 		"-cq", "25",
 		"-b:v", p.Bitrate,
+		"-rc", "vbr",
 		"-maxrate", p.Bitrate,
-		"-g", fmt.Sprintf("%d", p.FPS*5),
-		"-bf", "0",
+		"-g", fmt.Sprintf("%d", p.FPS/2),
+		"-keyint_min", fmt.Sprintf("%d", p.FPS/2),
+		"-minrate", p.Bitrate,
+		"-bufsize", fmt.Sprintf("%dM", bufsize*2),
+		"-bf", "2",
 		"-zerolatency", "1",
 		"-no-scenecut", "1",
 	)

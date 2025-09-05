@@ -72,24 +72,42 @@ func (m *Manager) CloseActive() {
 	}
 }
 
+// func (m *Manager) End(w http.ResponseWriter, r *http.Request) {
+// 	m.mu.Lock()
+// 	defer m.mu.Unlock()
+
+// 	w.Header().Set("Content-Type", "application/json")
+
+// 	sess := m.active
+// 	m.active = nil
+// 	m.mu.Unlock()
+
+// 	if sess != nil {
+// 		_ = sess.Close()
+// 		w.Header().Set("Content-Type", "application/json")
+// 		if _, err := w.Write([]byte(`{"status":"ended"}`)); err != nil {
+// 			log.Printf("error writing response: %v", err)
+// 		}
+// 		return
+// 	}
+// 	w.WriteHeader(http.StatusNoContent)
+// }
+
 func (m *Manager) End(w http.ResponseWriter, r *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	w.Header().Set("Content-Type", "application/json")
-
 	sess := m.active
 	m.active = nil
-	m.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
 
 	if sess != nil {
-		_ = sess.Close()
-		w.Header().Set("Content-Type", "application/json")
-		if _, err := w.Write([]byte(`{"status":"ended"}`)); err != nil {
-			log.Printf("error writing response: %v", err)
-		}
+		go sess.Close() // async if long-running
+		w.Write([]byte(`{"status":"ended"}`))
 		return
 	}
+
 	w.WriteHeader(http.StatusNoContent)
 }
 

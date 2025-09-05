@@ -69,8 +69,8 @@ func New(mgr *webrtcx.Manager) *Server {
 		mux: http.NewServeMux(),
 		mgr: mgr,
 	}
-	id, _ := loadOrCreateIdentity()
-	_ = StartLANDiscoveryResponder(id.DeviceID, id.LanToken, 8080)
+	// id, _ := loadOrCreateIdentity()
+	StartLANDiscoveryResponder()
 	// s.RegisterPairingExportRoute("wss://broker.example.com/ws", 8080)
 	s.routes()
 	return s
