@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const lanPort = ":9876:"
+const lanPort = ":9876"
 
 func getLocalIP() string {
 	addrs, err := net.InterfaceAddrs()

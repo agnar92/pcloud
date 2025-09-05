@@ -27,13 +27,24 @@ export function SettingsProvider({ children }) {
       return defaultSettings;
     }
   });
+  const [showStats, setShowStats] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("pcloud_settings", JSON.stringify(settings));
   }, [settings]);
 
+  const value = {
+    settings,
+    setSettings,
+    showStats,
+    setShowStats,
+    showSidebar,
+    setShowSidebar,
+  };
+
   return (
-    <SettingsContext.Provider value={{ settings, setSettings }}>
+    <SettingsContext.Provider value={value}>
       {children}
     </SettingsContext.Provider>
   );

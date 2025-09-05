@@ -1,72 +1,71 @@
+@reference "tailwindcss";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@reference "tailwindcss";
 
 @layer base {
   body {
-    @apply m-0 bg-zinc-900 text-white w-full h-full font-sans;
+    @apply text-gray-200 font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    /* Modern layered background */
+    background-color: #0b1220; /* fallback */
+    background-image:
+      radial-gradient(1200px 600px at 10% -10%, rgba(59,130,246,0.25), transparent 60%),
+      radial-gradient(800px 500px at 90% 10%, rgba(34,197,94,0.18), transparent 60%),
+      radial-gradient(1000px 600px at 50% 120%, rgba(99,102,241,0.16), transparent 60%),
+      linear-gradient(180deg, rgba(13,17,23,0.95), rgba(13,17,23,0.95)),
+      /* subtle grid */
+      linear-gradient(transparent 0, rgba(255,255,255,0.04) 1px),
+      linear-gradient(90deg, transparent 0, rgba(255,255,255,0.04) 1px);
+    background-size:
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      100% 100%,
+      40px 40px,
+      40px 40px;
+    background-position:
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0,
+      0 0;
+    background-blend-mode: screen, screen, screen, normal, normal, normal;
   }
 }
 
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
 }
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+::-webkit-scrollbar-track {
+  @apply bg-gray-800;
 }
-a:hover {
-  color: #535bf2;
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-600 rounded-full;
 }
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  } 
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500;
 } 
+
+/* Small utility helpers for a modern look */
+@layer utilities {
+  .glass {
+    @apply bg-gray-900/60 border border-gray-700/60 backdrop-blur-md shadow-xl;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900;
+  }
+  /* Tailwind can't @apply a custom class; inline base utilities per variant */
+  .btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 bg-blue-600 hover:bg-blue-500 text-white focus:ring-blue-500; }
+  .btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 bg-gray-800/70 hover:bg-gray-800 text-gray-200 border border-gray-700; }
+  .btn-success { @apply inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 bg-green-600/80 hover:bg-green-600 text-white focus:ring-green-500; }
+  .btn-muted { @apply inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 bg-gray-700/70 hover:bg-gray-700 text-gray-100; }
+  .btn-danger { @apply inline-flex items-center justify-center gap-2 rounded-md font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 bg-red-600/90 hover:bg-red-600 text-white focus:ring-red-500; }
+  .status-dot { @apply h-3 w-3 rounded-full ring-2 ring-green-500/30; }
+}

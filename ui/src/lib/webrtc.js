@@ -93,32 +93,72 @@ export async function startSession(server, cfg, status) {
   //   statsCb?.(out || 'fps:- jitter:- br:-kB');
   // }, 1000);
 
-  let lastFrames = 0, lastTs = performance.now();
+  let lastStats = {
+    timestamp: performance.now(),
+    bytesReceived: 0,
+    framesDecoded: 0,
+    packetsReceived: 0,
+    packetsLost: 0,
+    framesDropped: 0,
+  };
+
   const t = setInterval(async () => {
     if (!pc) return clearInterval(t);
 
-    const r = await pc.getStats();
-    r.forEach(rep => {
+    const reports = await pc.getStats();
+    let videoReport = null;
+    reports.forEach(rep => {
       if (rep.type === 'inbound-rtp' && rep.kind === 'video') {
-        const now = performance.now();
-        const fd = rep.framesDecoded ?? 0;
-        const dt = (now - lastTs) / 1000;
-        let fps = '-';
-        if (dt > 0.25) {
-          fps = ((fd - lastFrames) / dt).toFixed(1);
-          lastFrames = fd;
-          lastTs = now;
-        }
-        // const br = Math.round((rep.bytesReceived || 0) / 1024);
-        const br = ((rep.bytesReceived || 0) * 8 / 1_000_000).toFixed(2);
-        const jitter = Math.round((rep.jitter || 0) * 1000);
-        // const out = `fps: ${fps}  jitter: ${jitter}ms  br: ${br}kB`;
-        const out = `fps: ${fps}  jitter: ${jitter}ms  br: ${br} Mbps`;
-
-
-        statsCb?.(out);
+        videoReport = rep;
       }
     });
+
+    if (!videoReport) return;
+
+    const now = performance.now();
+    const dt = (now - lastStats.timestamp) / 1000; // time delta in seconds
+
+    if (dt === 0) return;
+
+    // --- Calculate FPS ---
+    const framesDecoded = videoReport.framesDecoded || 0;
+    const fps = ((framesDecoded - lastStats.framesDecoded) / dt).toFixed(1);
+
+    // --- Calculate Bitrate ---
+    const bytesReceived = videoReport.bytesReceived || 0;
+    const bitrate = (bytesReceived - lastStats.bytesReceived) * 8 / dt; // bits per second
+    const br = (bitrate / 1_000_000).toFixed(2); // Mbps
+
+    // --- Calculate Packet Loss ---
+    const packetsReceived = videoReport.packetsReceived || 0;
+    const packetsLost = videoReport.packetsLost || 0;
+    const deltaPacketsReceived = packetsReceived - lastStats.packetsReceived;
+    const deltaPacketsLost = packetsLost - lastStats.packetsLost;
+    let packetLossPercentage = 0;
+    const totalDeltaPackets = deltaPacketsReceived + deltaPacketsLost;
+    if (totalDeltaPackets > 0) {
+      packetLossPercentage = (deltaPacketsLost / totalDeltaPackets) * 100;
+    }
+
+    // --- Calculate Frames Dropped ---
+    const framesDropped = videoReport.framesDropped || 0;
+    const deltaFramesDropped = framesDropped - lastStats.framesDropped;
+
+    // --- Update lastStats for the next interval ---
+    lastStats = {
+      timestamp: now,
+      bytesReceived: bytesReceived,
+      framesDecoded: framesDecoded,
+      packetsReceived: packetsReceived,
+      packetsLost: packetsLost,
+      framesDropped: framesDropped,
+    };
+
+    // --- Format Output String ---
+    const jitter = Math.round((videoReport.jitter || 0) * 1000);
+    const pl = packetLossPercentage.toFixed(2);
+    const out = `fps: ${fps} | br: ${br} Mbps | jitter: ${jitter}ms | loss: ${pl}% | dropped: ${deltaFramesDropped}`;
+    statsCb?.(out);
   }, 1000);
 }
 
