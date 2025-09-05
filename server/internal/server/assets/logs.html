@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Logs</title>
+</head>
+
+<body>
+    <h2>PCloud Log Viewer</h2>
+    <textarea id="logbox" rows="30" cols="120" readonly></textarea>
+    <script>
+        fetch('/logs/raw')
+            .then(res => res.text())
+            .then(txt => document.getElementById('logbox').value = txt)
+            .catch(err => alert('Failed to load logs: ' + err));
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,18 @@
+2025/09/05 15:20:28 main.go:38: PCloud server listening on :8080
+2025/09/05 15:22:46 main.go:38: PCloud server listening on :8080
+2025/09/05 15:23:22 main.go:24: Restart triggered from tray
+2025/09/05 15:23:23 lan_discovery.go:36: LAN discovery listen error: listen udp :9876: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.
+2025/09/05 15:23:23 main.go:38: PCloud server listening on :8080
+2025/09/05 15:23:24 main.go:29: Exiting server from tray
+2025/09/05 15:23:32 main.go:38: PCloud server listening on :8080
+2025/09/05 15:23:42 manager.go:159: OFFER codec=h264 fps=60 1920x1080 preset=p1 br=50M audio=true
+2025/09/05 15:23:46 manager.go:187: Input DataChannel created
+2025/09/05 15:31:50 main.go:38: PCloud server listening on :8080
+2025/09/05 15:38:36 main.go:38: PCloud server listening on :8080
+2025/09/05 15:42:46 main.go:38: PCloud server listening on :8080
+2025/09/05 15:43:48 main.go:38: PCloud server listening on :8080
+2025/09/05 16:50:29 main.go:29: Exiting server from tray
+2025/09/05 17:01:28 main.go:38: PCloud server listening on :8080
+2025/09/05 17:01:45 manager.go:159: OFFER codec=h264 fps=60 1920x1080 preset=p1 br=50M audio=true
+2025/09/05 17:01:48 manager.go:187: Input DataChannel created
+2025/09/05 17:04:19 main.go:38: PCloud server listening on :8080

@@ -1,10 +1,13 @@
 package server
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 	"time"
@@ -13,6 +16,9 @@ import (
 	// "pc_cloud/internal/devices"
 	"github.com/gorilla/websocket"
 )
+
+//go:embed assets/*.html
+var assets embed.FS
 
 // TODO: add devices, something wrong with imports?
 
@@ -138,6 +144,37 @@ func (s *Server) routes() {
 		}
 	})
 
+	s.mux.HandleFunc("/logs/raw", func(w http.ResponseWriter, r *http.Request) {
+		logFile := "pcloud.log"
+		f, err := os.Open(logFile)
+		if err != nil {
+			http.Error(w, "cannot open log file", http.StatusInternalServerError)
+			return
+		}
+		defer f.Close()
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		io.Copy(w, f)
+	})
+
+	s.mux.HandleFunc("/logs", func(w http.ResponseWriter, r *http.Request) {
+		data, err := assets.ReadFile("assets/logs.html")
+		if err != nil {
+			http.Error(w, "cannot read logs.html", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		w.Write(data)
+	})
+
+	s.mux.HandleFunc("/settings", func(w http.ResponseWriter, r *http.Request) {
+		data, err := assets.ReadFile("assets/settings.html")
+		if err != nil {
+			http.Error(w, "cannot read settings.html", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		w.Write(data)
+	})
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

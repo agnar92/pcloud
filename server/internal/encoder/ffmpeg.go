@@ -2,29 +2,13 @@ package encoder
 
 import (
 	"context"
-	"crypto/sha256"
 	_ "embed"
-	"encoding/hex"
 	"fmt"
-	"io"
-	"io/fs"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
-)
-
-//go:embed ffmpeg.exe
-var winFFmpeg []byte
-
-var (
-	extractedOnce sync.Once
-	extractedPath string
-	extractErr    error
-	persisted     bool
 )
 
 type Params struct {
@@ -78,8 +62,6 @@ func BuildFFmpegPipeCmd(ctx context.Context, p Params) (*exec.Cmd, string /*vide
 
 	// --- INPUTS ---
 	if runtime.GOOS == "windows" {
-		// videoInputGraph := fmt.Sprintf("ddagrab=framerate=%d:draw_mouse=1", p.FPS)
-		// args = append(args, "-init_hw_device", "d3d11va", "-f", "lavfi", "-i", videoInputGraph)
 		args = append(args, "-init_hw_device", "d3d11va")
 
 		if p.WithAudio {
@@ -168,135 +150,6 @@ func BuildFFmpegPipeCmd(ctx context.Context, p Params) (*exec.Cmd, string /*vide
 			"-f", "rtp", audioOut,
 		)
 	}
-
-	ff, err := Path()
-	if err != nil || ff == "" {
-		ff = "ffmpeg" // fallback to system ffmpeg
-	}
-	cmd := exec.Command(ff, args...)
+	cmd := exec.Command("ffmpeg", args...)
 	return cmd, vfmt
-}
-
-func extract() (string, error) {
-	extractedOnce.Do(func() {
-		target, ok := chooseCacheTarget()
-		if ok {
-			// Try to place a persistent cached binary validated by hash
-			if err := ensureCachedFFmpeg(target); err == nil {
-				extractedPath = target
-				persisted = true
-				extractErr = nil
-				return
-			}
-		}
-		// Fallback to temp extraction
-		f, err := os.CreateTemp("", "ffmpeg-*.exe")
-		if err != nil {
-			extractErr = err
-			return
-		}
-		extractedPath = f.Name()
-		data, derr := embeddedData()
-		if derr != nil {
-			_ = f.Close()
-			extractErr = derr
-			return
-		}
-		if _, err := f.Write(data); err != nil {
-			_ = f.Close()
-			extractErr = err
-			return
-		}
-		_ = f.Close()
-		_ = os.Chmod(extractedPath, 0o755)
-	})
-	return extractedPath, extractErr
-}
-
-func Run(ctx context.Context, args ...string) (*exec.Cmd, error) {
-	path, err := extract()
-	if err != nil {
-		return nil, err
-	}
-	go func(p string) {
-		<-ctx.Done()
-		if !persisted {
-			if err := os.Remove(p); err != nil {
-				fmt.Printf("error removing temp file: %v\n", err)
-			}
-		}
-	}(path)
-
-	cmd := exec.CommandContext(ctx, path, args...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	if runtime.GOOS == "windows" {
-		type sysProcAttr struct{ HideWindow bool }
-		_ = sysProcAttr{}
-	}
-
-	cmd.Dir = filepath.Dir(path)
-
-	return cmd, nil
-}
-
-// Path returns the ffmpeg path ensuring it is extracted/cached.
-func Path() (string, error) { return extract() }
-
-// embeddedData returns the platform-appropriate embedded ffmpeg bytes.
-func embeddedData() ([]byte, error) {
-	switch runtime.GOOS {
-	case "windows":
-		return winFFmpeg, nil
-	default:
-		return nil, io.ErrUnexpectedEOF
-	}
-}
-
-func ensureCachedFFmpeg(target string) error {
-	data, err := embeddedData()
-	if err != nil {
-		return err
-	}
-	h := sha256.Sum256(data)
-	hexh := hex.EncodeToString(h[:])
-	dir := filepath.Dir(target)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	hashFile := target + ".sha256"
-	// Validate existing
-	if b, err := os.ReadFile(hashFile); err == nil && strings.TrimSpace(string(b)) == hexh {
-		if fi, err := os.Stat(target); err == nil && fi.Mode().Perm()&0o111 != 0 {
-			return nil
-		}
-	}
-	// Write atomically
-	tmp := target + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o755); err != nil {
-		return err
-	}
-	if err := os.Rename(tmp, target); err != nil {
-		return err
-	}
-	if err := os.WriteFile(hashFile, []byte(hexh), fs.FileMode(0o644)); err != nil {
-		return err
-	}
-	return nil
-}
-
-// chooseCacheTarget returns a suitable persistent path for ffmpeg.
-func chooseCacheTarget() (string, bool) {
-	// Prefer ProgramData on Windows, else LocalAppData, else temp
-	name := "ffmpeg.exe"
-	if runtime.GOOS == "windows" {
-		if pd := os.Getenv("ProgramData"); pd != "" {
-			return filepath.Join(pd, "pc_cloud", "bin", name), true
-		}
-		if la := os.Getenv("LocalAppData"); la != "" {
-			return filepath.Join(la, "pc_cloud", "bin", name), true
-		}
-	}
-	return filepath.Join(os.TempDir(), name), true
 }
