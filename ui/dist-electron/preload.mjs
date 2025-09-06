@@ -17,14 +17,14 @@ electron.contextBridge.exposeInMainWorld("ipcRenderer", {
     const [channel, ...omit] = args;
     return electron.ipcRenderer.invoke(channel, ...omit);
   },
-  checkServer: async (ip2) => {
-    return await electron.ipcRenderer.invoke("check-one-server", ip2);
+  checkServer: async (ip) => {
+    return await electron.ipcRenderer.invoke("check-one-server", ip);
   },
-  discoverServers: async () => {
+  discoverServers: async (ip) => {
     return await electron.ipcRenderer.invoke("discover-servers", ip);
   },
-  wakeOnLan: async (mac2) => {
-    return await electron.ipcRenderer.invoke("wake-on-lan", mac2);
+  wakeOnLan: async (mac) => {
+    return await electron.ipcRenderer.invoke("wake-on-lan", mac);
   },
   endSession: async (url) => {
     return await electron.ipcRenderer.invoke("end-session", url);
@@ -32,12 +32,7 @@ electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   checkServersStatus: async (servers) => {
     return await electron.ipcRenderer.invoke("check-servers-status", servers);
   },
-  suspendSystem: async () => {
-    return await electron.ipcRenderer.invoke("suspend-system");
-  },
-  pingLocalhost: async () => {
-    return await electron.ipcRenderer.invoke("ping-local-network", mac);
+  appExit: async () => {
+    return await electron.ipcRenderer.invoke("app-exit");
   }
-  // You can expose other APTs you need here.
-  // ...
 });

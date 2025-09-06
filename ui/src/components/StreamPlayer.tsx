@@ -1,20 +1,12 @@
-import { useEffect, useRef } from "react";
+import { forwardRef, useRef } from "react";
 
-export default function VideoStream() {
-  const videoRef = useRef(null);
+const VideoStream = forwardRef<HTMLVideoElement>((_props, ref) => {
   const audioRef = useRef(null);
-
-  useEffect(() => {
-    import("../lib/webrtc").then((mod) => {
-      mod.setVideoElement(videoRef.current);
-      // videoRef.current?.blur();
-    });
-  }, []);
 
   return (
     <>
       <video
-        ref={videoRef}
+        ref={ref}
         autoPlay
         playsInline
         tabIndex={-1}     // ✅ prevent focus
@@ -25,3 +17,6 @@ export default function VideoStream() {
     </>
   );
 }
+);
+
+export default VideoStream;

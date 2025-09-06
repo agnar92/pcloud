@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSettings } from "../context/SettingsContext";
 
 // Reusable component for a single setting item
-const SettingItem = ({ label, children }) => (
+const SettingItem: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div className="py-4 flex justify-between items-center border-b border-gray-700">
     <label className="text-lg text-gray-300">{label}</label>
     <div className="w-1/2">{children}</div>
@@ -10,7 +10,7 @@ const SettingItem = ({ label, children }) => (
 );
 
 // Reusable styled <select> element with custom arrow and better contrast
-const StyledSelect = ({ children, ...props }) => (
+const StyledSelect: React.FC<React.SelectHTMLAttributes<HTMLSelectElement>> = ({ children, ...props }) => (
   <div className="relative">
     <select
       {...props}
@@ -30,7 +30,9 @@ const StyledSelect = ({ children, ...props }) => (
 );
 
 // Reusable styled <input> element
-const StyledInput = (props) => (
+interface StyledInputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+
+const StyledInput: React.FC<StyledInputProps> = (props) => (
   <input {...props} className="w-full p-3 bg-gray-900/70 text-gray-100 rounded-md border border-gray-700 hover:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 placeholder-gray-400" />
 );
 
@@ -38,9 +40,15 @@ export default function Settings() {
   const { settings, setSettings } = useSettings();
   const [activeCategory, setActiveCategory] = useState('video');
 
-  const updateVideo = (key, value) => setSettings(s => ({ ...s, video: { ...s.video, [key]: value } }));
-  const updateAudio = (key, value) => setSettings(s => ({ ...s, audio: { ...s.audio, [key]: value } }));
-  const updateNetwork = (key, value) => setSettings(s => ({ ...s, network: { ...s.network, [key]: value } }));
+
+  const updateVideo = <K extends keyof typeof settings.video>(key: K, value: (typeof settings.video)[K]) => setSettings(s => ({ ...s, video: { ...s.video, [key]: value } }));
+  const updateAudio = <K extends keyof typeof settings.audio>(key: K, value: (typeof settings.audio)[K]) => setSettings(s => ({ ...s, audio: { ...s.audio, [key]: value } }));
+  const updateNetwork = <K extends keyof typeof settings.network>(key: K, value: (typeof settings.network)[K]) => setSettings(s => ({ ...s, network: { ...s.network, [key]: value } }));
+
+
+  // const updateVideo = (key, value) => setSettings(s => ({ ...s, video: { ...s.video, [key]: value } }));
+  // const updateAudio = (key, value) => setSettings(s => ({ ...s, audio: { ...s.audio, [key]: value } }));
+  // const updateNetwork = (key, value) => setSettings(s => ({ ...s, network: { ...s.network, [key]: value } }));
 
   const categories = ['Video', 'Audio', 'Network'];
 

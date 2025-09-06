@@ -1,8 +1,27 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useSettings } from "../context/SettingsContext";
 import GamepadStatus from "./GamepadStatus";
+import { ReactNode, ChangeEvent } from "react";
 
-const Toggle = ({ label, checked, onChange }) => (
+// From App.tsx
+interface Server {
+  name: string;
+  address: string;
+  mac: string;
+}
+
+interface Session {
+  mode: string;
+  server: Server;
+}
+
+interface ToggleProps {
+  label: string;
+  checked: boolean;
+  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
+}
+
+const Toggle = ({ label, checked, onChange }: ToggleProps) => (
   <label className="flex items-center justify-between cursor-pointer p-2 hover:bg-gray-700/50 rounded-md">
     <span className="font-medium text-gray-200">{label}</span>
     <div className="relative">
@@ -13,7 +32,13 @@ const Toggle = ({ label, checked, onChange }) => (
   </label>
 );
 
-const ActionButton = ({ onClick, children, className }) => (
+interface ActionButtonProps {
+  onClick: () => void;
+  children: ReactNode;
+  className: string;
+}
+
+const ActionButton = ({ onClick, children, className }: ActionButtonProps) => (
   <button
     onClick={onClick}
     className={`w-full px-4 py-2 rounded-md font-semibold text-white text-left transition-colors duration-200 ease-in-out ${className}`}>
@@ -21,7 +46,13 @@ const ActionButton = ({ onClick, children, className }) => (
   </button>
 );
 
-export default function SideBar({ page, session, onExit }) {
+interface SideBarProps {
+  page: string;
+  session: Session | null;
+  onExit: () => void;
+}
+
+export default function SideBar({ page, session, onExit }: SideBarProps) {
   const { showSidebar, setShowSidebar, showStats, setShowStats } = useSettings();
 
   const handleExit = () => {

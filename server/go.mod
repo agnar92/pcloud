@@ -2,8 +2,6 @@ module pc_cloud
 
 go 1.23.0
 
-toolchain go1.24.6
-
 require (
 	github.com/getlantern/systray v1.2.2
 	github.com/go-vgo/robotgo v0.110.8

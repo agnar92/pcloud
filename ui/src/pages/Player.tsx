@@ -1,29 +1,47 @@
 import { useEffect, useRef, useState } from "react";
 import StreamPlayer from "../components/StreamPlayer";
 import StatsOverlay from "../components/StatsOverlay";
-import { setVideoElement, startSession } from "../lib/webrtc";
+/// <reference types="../types/webrtc" />
+import { startSession } from "../lib/webrtc";
 import { useSettings } from "../context/SettingsContext";
-import useGamepad from "../hooks/useGamepad";
+import useGamepad from "../hooks/useGamepad.js"; 
 
-export default function Player({ session, onExit }) {
+
+interface PlayerProps {
+  session: {
+    server?: {
+      address?: string;
+    };
+  };
+}
+
+interface StreamConfig {
+  codec: string;
+  fps: number;
+  width: number;
+  height: number;
+  bitrate: string;
+  preset: string;
+  audio: boolean;
+}
+
+export default function Player({ session }: PlayerProps ) {
   const { settings, showStats, setShowSidebar } = useSettings();
-  const videoRef = useRef(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [started, setStarted] = useState(false);
 
   // --- Hold Escape Logic ---
-  const escTimer = useRef(null);
+  const escTimer = useRef<NodeJS.Timeout | null>(null);
   const [holding, setHolding] = useState(false);
   const [holdTime, setHoldTime] = useState(0);
 
-  useGamepad(session?.server?.address, true);
+  useGamepad(session?.server?.address ?? "", true);
 
   useEffect(() => {
-    if (!session || started) return;
-
-    setVideoElement(videoRef.current);
+    if (!session || started || !videoRef.current) return;
 
     const [width, height] = settings.video.res.split("x").map(Number);
-    const config = {
+    const config: StreamConfig = {
       codec: settings.video.codec,
       fps: settings.video.fps,
       width,
@@ -38,7 +56,7 @@ export default function Player({ session, onExit }) {
     const start = async () => {
       try {
         console.log("▶️ Starting session...");
-        await startSession(server, config, console.log);
+        await startSession(server, config, console.log, videoRef.current!);
         console.log("✅ Stream started");
         setStarted(true); // ✅ prevent re-run
       } catch (err) {
@@ -50,7 +68,7 @@ export default function Player({ session, onExit }) {
   }, [session, started, settings]);
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: { key: string; }) => {
       if (e.key === "Escape" && !escTimer.current) {
         let held = 0;
         setHolding(true);
@@ -58,16 +76,16 @@ export default function Player({ session, onExit }) {
           held += 100;
           setHoldTime(held);
           if (held >= 3000) {
-            clearInterval(escTimer.current);
+            if (escTimer.current) clearInterval(escTimer.current);
             escTimer.current = null;
             setHolding(false);
             setShowSidebar(true); // Open the global sidebar
           }
-        }, 100);
+        }, 100) as NodeJS.Timeout;
       }
     };
 
-    const handleKeyUp = (e) => {
+    const handleKeyUp = (e: { key: string; }) => {
       if (e.key === "Escape") {
         setHolding(false);
         setHoldTime(0);
@@ -85,13 +103,14 @@ export default function Player({ session, onExit }) {
       window.removeEventListener("keyup", handleKeyUp);
       if (escTimer.current) {
         clearInterval(escTimer.current);
+        escTimer.current = null;
       }
     };
   }, [setShowSidebar]);
 
   return (
     <div className="w-screen h-screen relative bg-black overflow-hidden">
-      <StreamPlayer />
+      <StreamPlayer ref={videoRef} /> 
       {showStats && <StatsOverlay />}
 
       {holding && (

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 
 export default function GamepadStatus() {
   const [connected, setConnected] = useState(false);
-  const [buttons, setButtons] = useState([]);
-  const [axes, setAxes] = useState([]);
-  const raf = useRef(null);
+  const [buttons, setButtons] = useState<boolean[]>([]);
+  const [axes, setAxes] = useState<number[]>([]);
+  const raf = useRef<number | null>(null);
 
   useEffect(() => {
     function pollGamepad() {
@@ -25,7 +25,11 @@ export default function GamepadStatus() {
     }
 
     pollGamepad();
-    return () => cancelAnimationFrame(raf.current);
+    return () => {
+      if (raf.current) {
+        cancelAnimationFrame(raf.current);
+      }
+    };
   }, []);
 
   return (

@@ -2,11 +2,15 @@
 package ui
 
 import (
+	_ "embed"
 	"os/exec"
 	"runtime"
 
 	"github.com/getlantern/systray"
 )
+
+//go:embed pcloud.ico
+var iconData []byte
 
 type Callbacks struct {
 	OnRestart func()
@@ -24,6 +28,7 @@ func StartTray(cb Callbacks) {
 func onReady(cb Callbacks) {
 	systray.SetTitle("PCloud")
 	systray.SetTooltip("PCloud Server")
+	systray.SetIcon(iconData)
 
 	// Set your tray icon (optional)
 	// systray.SetIcon(yourIconBytes)

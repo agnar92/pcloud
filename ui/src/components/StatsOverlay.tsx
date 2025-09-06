@@ -1,8 +1,23 @@
 import { useEffect, useState } from "react";
-import { onStats } from "../lib/webrtc";
+import { onStats } from "../lib/webrtc.js";
+
+interface StatItemProps {
+  label: string;
+  value: string | number;
+  unit: string;
+}
+
+interface Stat {
+  value: string;
+  unit: string;
+}
+
+interface Stats {
+  [key: string]: Stat;
+}
 
 // A single stat item component for consistent styling
-const StatItem = ({ label, value, unit }) => (
+const StatItem = ({ label, value, unit }: StatItemProps) => (
   <div className="flex justify-between items-baseline">
     <span className="text-gray-400">{label}</span>
     <span className="font-semibold text-gray-200">
@@ -11,15 +26,16 @@ const StatItem = ({ label, value, unit }) => (
   </div>
 );
 
+
 export default function StatsOverlay() {
-  const [stats, setStats] = useState({});
+  const [stats, setStats] = useState<Stats>({});
 
   useEffect(() => {
     // The onStats callback from webrtc.js will be called with the stats string.
     // We parse it here into a key-value object for easier rendering.
-    onStats((statsString) => {
-      const statsObject = {};
-      statsString.split('|').forEach(part => {
+    onStats((statsString: string) => {
+      const statsObject: Stats = {};
+      statsString.split('|').forEach((part: string) => {
         const [key, value] = part.trim().split(':');
         if (key && value) {
           const [val, unit] = value.trim().split(' ');

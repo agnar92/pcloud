@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 )
 
 type Params struct {
@@ -150,6 +151,9 @@ func BuildFFmpegPipeCmd(ctx context.Context, p Params) (*exec.Cmd, string /*vide
 			"-f", "rtp", audioOut,
 		)
 	}
-	cmd := exec.Command("ffmpeg", args...)
+	cmd := exec.CommandContext(ctx, "ffmpeg.exe", args...)
+	if runtime.GOOS == "windows" {
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	}
 	return cmd, vfmt
 }

@@ -5,14 +5,14 @@ let inputDC = null;
 
 // ---- public API ------------------------------------------------------------
 
-export function setVideoElement(el) { videoEl = el; }
+// export function setvideoElement(el) { videoEl = el; }
 
 export function onStats(cb) { statsCb = cb; }
 
-export async function startSession(server, cfg, status) {
+export async function startSession(server, cfg, status, el) {
+  videoEl = el;
   if (pc) {
-    pc.close();
-    pc = null;
+    await endSession(server);
   }
 
   pc = new RTCPeerConnection({ iceServers: [] });
@@ -51,7 +51,7 @@ export async function startSession(server, cfg, status) {
     const wanted = caps?.codecs?.filter(c => (c.mimeType || '').toLowerCase().includes(cfg.codec)) || [];
     const rest = caps?.codecs?.filter(c => !wanted.includes(c)) || [];
     if (wanted.length) await tx.setCodecPreferences([...wanted, ...rest]);
-  } catch (_) { }
+  } catch (_) { /* empty */ }
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
@@ -73,25 +73,6 @@ export async function startSession(server, cfg, status) {
 
   attachInputsRD(); // absolute mouse + keys + wheel + gamepad
   status?.('Connected to ' + server);
-
-  // Stats 1 Hz
-  // let lastFrames=0, lastTs=performance.now();
-  // const t = setInterval(async () => {
-  //   if (!pc) { clearInterval(t); return; }
-  //   let out = '';
-  //   const r = await pc.getStats();
-  //   r.forEach(rep => {
-  //     if (rep.type==='inbound-rtp' && rep.kind==='video') {
-  //       const now = performance.now(), fd = rep.framesDecoded ?? 0;
-  //       const dt = (now-lastTs)/1000;
-  //       let fps = '-';
-  //       if (dt>0.25) { fps = ((fd-lastFrames)/dt).toFixed(1); lastFrames=fd; lastTs=now; }
-  //       const br = Math.round((rep.bytesReceived||0)/1024);
-  //       out = `fps:${rep.framesPerSecond ?? fps}  jitter:${Math.round((rep.jitter||0)*1000)}ms  br:${br}kB`;
-  //     }
-  //   });
-  //   statsCb?.(out || 'fps:- jitter:- br:-kB');
-  // }, 1000);
 
   let lastStats = {
     timestamp: performance.now(),
@@ -163,8 +144,8 @@ export async function startSession(server, cfg, status) {
 }
 
 export async function endSession(server) {
-  try { await fetch(server + '/api/session/end', { method: 'POST', mode: 'cors' }); } catch (_) { }
-  try { pc && pc.close(); } catch (_) { }
+  try { await fetch(server + '/api/session/end', { method: 'POST', mode: 'cors' }); } catch (_) { /* empty */ }
+  try { pc && pc.close(); } catch (_) { /* empty */ }
   pc = null;
   if (videoEl?.srcObject) {
     console.log("Stopping video tracks");

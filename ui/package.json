@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dist:linux": "npm run build && electron-builder --linux AppImage tar.gz",
+    "dist:flatpak": "npm run build && electron-builder --linux flatpak"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.13",
@@ -33,5 +35,25 @@
     "vite-plugin-electron": "^0.28.6",
     "vite-plugin-electron-renderer": "^0.14.5"
   },
-  "main": "dist-electron/main.js"
+  "main": "dist-electron/main.js",
+  "build": {
+    "appId": "com.pcloud.App",
+    "files": ["dist", "dist-electron", "package.json"],
+    "linux": {
+      "target": ["AppImage", "tar.gz"],
+      "category": "Utility"
+    },
+    "flatpak": {
+      "runtime": "org.freedesktop.Platform",
+      "sdk": "org.freedesktop.Sdk",
+      "runtimeVersion": "24.08",
+      "base": "org.electronjs.Electron2.BaseApp",
+      "baseVersion": "24.08",
+      "finishArgs": [
+        "--socket=x11", "--share=ipc", "--device=dri",
+        "--socket=pulseaudio", "--share=network"
+      ]
+    }
+  }
 }
+  

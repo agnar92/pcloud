@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, Dispatch, SetStateAction } from "react";
 
 const defaultSettings = {
   video: {
@@ -16,10 +16,21 @@ const defaultSettings = {
   },
 };
 
-const SettingsContext = createContext();
+type AppSettings = typeof defaultSettings;
 
-export function SettingsProvider({ children }) {
-  const [settings, setSettings] = useState(() => {
+type SettingsContextType = {
+  showSidebar: boolean;
+  setShowSidebar: (v: boolean) => void;
+  showStats: boolean;
+  setShowStats: (v: boolean) => void;
+  settings: AppSettings;
+  setSettings: Dispatch<SetStateAction<AppSettings>>;
+};
+
+const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+
+export function SettingsProvider({ children } : { children: ReactNode }) {
+  const [settings, setSettings] = useState<AppSettings>(() => {
     try {
       const saved = localStorage.getItem("pcloud_settings");
       return saved ? JSON.parse(saved) : defaultSettings;
@@ -34,14 +45,7 @@ export function SettingsProvider({ children }) {
     localStorage.setItem("pcloud_settings", JSON.stringify(settings));
   }, [settings]);
 
-  const value = {
-    settings,
-    setSettings,
-    showStats,
-    setShowStats,
-    showSidebar,
-    setShowSidebar,
-  };
+  const value: SettingsContextType = { showSidebar, setShowSidebar, showStats, setShowStats, settings, setSettings };
 
   return (
     <SettingsContext.Provider value={value}>
@@ -50,6 +54,8 @@ export function SettingsProvider({ children }) {
   );
 }
 
-export function useSettings() {
-  return useContext(SettingsContext);
+export function useSettings(): SettingsContextType {
+  const ctx = useContext(SettingsContext);
+  if (!ctx) throw new Error('useSettings must be used within <SettingsProvider>');
+  return ctx;
 }

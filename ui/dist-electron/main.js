@@ -1,9 +1,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import dgram from "dgram";
-createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 process.env.APP_ROOT = path.join(__dirname, "..");
 const VITE_DEV_SERVER_URL = process.env["VITE_DEV_SERVER_URL"];
@@ -13,9 +11,15 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win;
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, "electron-vite.svg"),
+    width: 1280,
+    height: 800,
+    frame: false,
+    // fullscreen: true,
+    resizable: false,
     webPreferences: {
-      preload: path.join(__dirname, "preload.mjs")
+      preload: path.join(__dirname, "preload.mjs"),
+      contextIsolation: true,
+      nodeIntegration: false
     }
   });
   win.webContents.openDevTools();
@@ -40,10 +44,10 @@ app.on("activate", () => {
   }
 });
 app.whenReady().then(createWindow);
-ipcMain.handle("check-servers-status", async (event, servers) => {
+ipcMain.handle("check-servers-status", async (_event, servers) => {
   console.log(`--- Checking status for ${servers.length} servers ---
 `);
-  const promises = servers.map((server) => {
+  const promises = servers.map(async (server) => {
     const url = `http://${server.address}:8080/healthz`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 2e3);
@@ -57,7 +61,7 @@ ipcMain.handle("check-servers-status", async (event, servers) => {
   console.log("--- Server status check finished ---");
   return results;
 });
-ipcMain.handle("check-one-server", async (event, ip) => {
+ipcMain.handle("check-one-server", async (_event, ip) => {
   console.log(`Checking server at ${ip}...`);
   const url = `http://${ip}:8080/healthz`;
   const controller = new AbortController();
@@ -75,7 +79,7 @@ ipcMain.handle("check-one-server", async (event, ip) => {
     clearTimeout(timeout);
   }
 });
-ipcMain.handle("discover-servers", async (event, ip) => {
+ipcMain.handle("discover-servers", async (_event, ip) => {
   const subnet = ip ? ip.split(".").slice(0, 3).join(".") : null;
   if (!subnet) {
     console.log("No valid IP provided for discovery.");
@@ -111,7 +115,7 @@ ipcMain.handle("discover-servers", async (event, ip) => {
   console.log(`Discovery finished. Found ${foundServers.length} servers.`);
   return foundServers;
 });
-ipcMain.handle("end-session", async (event, url) => {
+ipcMain.handle("end-session", async (_event, url) => {
   try {
     const res = await fetch(`${url}/api/session/end`, { method: "POST" });
     if (!res.ok) {
@@ -123,7 +127,7 @@ ipcMain.handle("end-session", async (event, url) => {
     throw err;
   }
 });
-ipcMain.handle("suspend-server", async (event, serverAddress) => {
+ipcMain.handle("suspend-server", async (_event, serverAddress) => {
   try {
     const url = `http://${serverAddress}:8080/api/system/suspend`;
     console.log(`Sending suspend command to ${url}`);
@@ -137,9 +141,9 @@ ipcMain.handle("suspend-server", async (event, serverAddress) => {
     throw err;
   }
 });
-ipcMain.handle("wake-on-lan", async (event, macAddress) => {
+ipcMain.handle("wake-on-lan", async (_event, macAddress) => {
   try {
-    const macBytes = macAddress.split(/:|\-/).map((part) => parseInt(part, 16));
+    const macBytes = macAddress.split(/:|-/).map((part) => parseInt(part, 16));
     if (macBytes.length !== 6 || macBytes.some(isNaN)) {
       throw new Error("Invalid MAC address format.");
     }
@@ -165,6 +169,9 @@ ipcMain.handle("wake-on-lan", async (event, macAddress) => {
     console.error("WoL Error:", err);
     throw err;
   }
+});
+ipcMain.handle("app-exit", async () => {
+  app.quit();
 });
 export {
   MAIN_DIST,

@@ -1,4 +1,3 @@
-// gamepad.js — Option A: Electron renderer uses Gamepad API → WebSocket to Go server
 export class GamepadStreamer {
   constructor(opts = {}) {
     this.ws = null;
@@ -43,12 +42,13 @@ export class GamepadStreamer {
       const p = (navigator.getGamepads?.()||[])[this.padIndex];
       if (!p) return;
       const snap = this._snapshot(p);
-      if (this.ws && this.ws.readyState === 1) { try { this.ws.send(JSON.stringify(snap)); } catch{} }
+      if (this.ws && this.ws.readyState === 1) { try { this.ws.send(JSON.stringify(snap)); } catch{ /* empty */ } }
       this.logCb(snap);
     }, interval);
   }
-  stop() { if (this.timer) { clearInterval(this.timer); this.timer = 0; } if (this.ws) { try{this.ws.close();}catch{} this.ws=null; } this.statusCb("stopped"); }
+  stop() { if (this.timer) { clearInterval(this.timer); this.timer = 0; } if (this.ws) { try{this.ws.close();}catch{ /* empty */ } this.ws=null; } this.statusCb("stopped"); }
 }
+
 export function mountGamepadUI(root, streamer) {
   root.innerHTML = `<div class="gp-row">
     <button id="gp-start">Start Pad</button>

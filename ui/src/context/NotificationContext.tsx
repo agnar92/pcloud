@@ -1,12 +1,24 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
-const NotificationContext = createContext(null);
+type NotificationType = 'info' | 'success' | 'error';
 
-export function NotificationProvider({ children }) {
-  const [notification, setNotification] = useState(null);
+interface Notification {
+  id: number;
+  message: string;
+  type: NotificationType;
+}
 
-  const addNotification = useCallback((message, type = 'info') => {
+interface NotificationContextType {
+  addNotification: (message: string, type?: NotificationType) => void;
+}
+
+const NotificationContext = createContext<NotificationContextType | null>(null);
+
+export function NotificationProvider({ children }: { children: ReactNode }) {
+  const [notification, setNotification] = useState<Notification | null>(null);
+
+  const addNotification = useCallback((message: string, type: NotificationType = 'info') => {
     const id = Date.now();
     setNotification({ id, message, type });
     setTimeout(() => {

@@ -1,10 +1,24 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Dispatch, SetStateAction, FormEvent } from "react";
 import { useNotification } from "../context/NotificationContext";
 import { PlayIcon, ArrowPathIcon, PowerIcon, MoonIcon, PencilSquareIcon, XMarkIcon } from "../components/Icons";
 
+// Define types
+interface Server {
+  name: string;
+  address: string;
+  mac: string;
+}
+
+type ServerStatus = 'offline' | 'checking' | 'scanning' | 'online' | 'waking';
+
+interface ServersProps {
+  onConnect: (server: Server) => void;
+}
+
+
 // A custom hook to simplify storing state in localStorage.
-const useStoredState = (key, defaultValue) => {
-  const [value, setValue] = useState(() => {
+const useStoredState = <T,>(key: string, defaultValue: T): [T, Dispatch<SetStateAction<T>>] => {
+  const [value, setValue] = useState<T>(() => {
     try {
       const storedValue = localStorage.getItem(key);
       return storedValue !== null ? JSON.parse(storedValue) : defaultValue;
@@ -21,15 +35,15 @@ const useStoredState = (key, defaultValue) => {
 };
 
 // The main component, now focused on a single primary server
-export default function Servers({ onConnect }) {
-  const [server, setServer] = useStoredState('pcloud_primary_server', {
+export default function Servers({ onConnect }: ServersProps) {
+  const [server, setServer] = useStoredState<Server>('pcloud_primary_server', {
     name: 'My Gaming PC',
     address: '192.168.0.101',
     mac: '00:00:00:00:00:00'
   });
-  const [status, setStatus] = useState('offline'); // offline, checking, scanning, online, waking
+  const [status, setStatus] = useState<ServerStatus>('offline'); // offline, checking, scanning, online, waking
   const { addNotification } = useNotification();
-  const pollingRef = useRef(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   // State for the Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -44,12 +58,12 @@ export default function Servers({ onConnect }) {
     }
   };
 
-  const checkServer = useCallback(async (ip) => {
+  const checkServer = useCallback(async (ip: string) => {
     return await window.ipcRenderer.invoke("check-one-server", ip);
   }, []);
 
   // Refresh logic: check if the server is online, if not try to discover it
-  const handleRefresh = useCallback(async (ip) => {
+  const handleRefresh = useCallback(async () => {
     stopPolling();
     setStatus('checking');
     addNotification(`Checking for ${server.name}...`, 'info');
@@ -102,7 +116,8 @@ export default function Servers({ onConnect }) {
       }, 3000);
 
     } catch (err) {
-      addNotification(`WoL Failed: ${err.message}`, 'error');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      addNotification(`WoL Failed: ${errorMessage}`, 'error');
       setStatus('offline');
     }
   }, [server, checkServer, addNotification, setServer]);
@@ -115,11 +130,12 @@ export default function Servers({ onConnect }) {
       addNotification('Suspend command sent successfully.', 'success');
       setStatus('offline');
     } catch (err) {
-      addNotification(`Suspend failed: ${err.message}`, 'error');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      addNotification(`Suspend failed: ${errorMessage}`, 'error');
     }
   }, [server, addNotification]);
 
-  const handleEditSave = (e) => {
+  const handleEditSave = (e: FormEvent) => {
     e.preventDefault();
     if (!formName || !formIp) return addNotification('PC Name and IP Address are required.', 'error');
     setServer({ name: formName, address: formIp, mac: formMac });
@@ -140,6 +156,7 @@ export default function Servers({ onConnect }) {
       }
     });
     return stopPolling;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Note: dependencies are intentionally omitted to only run once on mount.
 
   const isOnline = status === 'online';

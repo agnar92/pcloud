@@ -1,5 +1,5 @@
 import { ipcRenderer, contextBridge } from 'electron'
-import { s } from 'framer-motion/client'
+
 
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   checkServer: async (ip: string) => {
     return await ipcRenderer.invoke('check-one-server', ip);
   },
-  discoverServers: async () => {
+  discoverServers: async (ip: string) => {
     return await ipcRenderer.invoke('discover-servers', ip);
   },
   wakeOnLan: async (mac: string) => {
@@ -34,15 +34,5 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
   checkServersStatus: async (servers: Array<{ name: string; address: string; mac?: string }>) => {
     return await ipcRenderer.invoke('check-servers-status', servers);
   },
-  suspendSystem: async () => {
-    return await ipcRenderer.invoke('suspend-system');
-  },
-  pingLocalhost: async () => {
-    return await ipcRenderer.invoke('ping-local-network', mac);
-  }
-
-
-
-  // You can expose other APTs you need here.
-  // ...
+  appExit: async () => { return await ipcRenderer.invoke('app-exit');},
 })
