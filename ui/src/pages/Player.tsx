@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import StreamPlayer from "../components/StreamPlayer";
 import StatsOverlay from "../components/StatsOverlay";
-/// <reference types="../types/webrtc" />
-import { startSession } from "../lib/webrtc";
+import { startSession } from "../lib/webrtc.js";
 import { useSettings } from "../context/SettingsContext";
 import useGamepad from "../hooks/useGamepad.js"; 
 
@@ -13,6 +12,7 @@ interface PlayerProps {
       address?: string;
     };
   };
+  onExit: () => void;
 }
 
 interface StreamConfig {
@@ -25,7 +25,7 @@ interface StreamConfig {
   audio: boolean;
 }
 
-export default function Player({ session }: PlayerProps ) {
+export default function Player({ session, onExit }: PlayerProps) {
   const { settings, showStats, setShowSidebar } = useSettings();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [started, setStarted] = useState(false);
@@ -112,6 +112,14 @@ export default function Player({ session }: PlayerProps ) {
     <div className="w-screen h-screen relative bg-black overflow-hidden">
       <StreamPlayer ref={videoRef} /> 
       {showStats && <StatsOverlay />}
+
+      {/* Exit button to use onExit prop */}
+      <button
+        onClick={onExit}
+        className="absolute top-4 right-4 px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 z-50"
+      >
+        Exit
+      </button>
 
       {holding && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-zinc-900/70 border border-zinc-600 rounded-xl text-sm animate-pulse">

@@ -2,19 +2,33 @@ import { useState } from "react";
 import Servers from "./pages/Servers";
 import Settings from "./pages/Settings";
 import Player from "./pages/Player";
-import { endSession } from "./lib/webrtc";
+import { endSession } from "./lib/webrtc.js";
 import { AnimatePresence, motion } from "framer-motion";
 import { SettingsProvider } from "./context/SettingsContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import SideBar from "./components/SideBar";
 import Nav from "./components/Nav";
 
-function AppContent() {
-  const [page, setPage] = useState("servers");
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(false);
+interface Server {
+  name: string;
+  address: string;
+  mac: string;
+}
 
-  const startSession = async (config) => {
+
+interface Session {
+  mode: string;
+  server: Server;
+}
+
+
+
+function AppContent() {
+  const [page, setPage] = useState<string>("servers");
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const startSession = async (config: Session) => {
     setLoading(true);
     await new Promise((res) => setTimeout(res, 1000));
     setSession(config);
@@ -37,18 +51,17 @@ function AppContent() {
       );
     }
 
-    if (page === "servers") return <Servers onConnect={(srv) => startSession({ mode: "desktop", server: srv })} />;
+    if (page === "servers") return <Servers onConnect={(srv: Server) => startSession({ mode: "desktop", server: srv })} />;
     if (page === "settings") return <Settings />;
-    if (page === "player") return <Player session={session} onExit={end} />;
+    if (page === "player") return <Player session={session as Session} onExit={end} />;
 
     return null;
   };
 
   return (
     <div className="w-screen h-screen text-white overflow-hidden">
-      <SideBar page={page} onExit={end} session={session} />
+      <SideBar page={page} onExit={end} session={session as Session} />
       {page !== "player" && <Nav page={page} setPage={setPage} />}
-      
       <main className="w-full h-full">
         <AnimatePresence mode="wait">
           <motion.div

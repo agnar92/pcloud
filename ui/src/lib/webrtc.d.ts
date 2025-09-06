@@ -14,3 +14,6 @@ export function startSession(
   logger: (msg: string) => void,
   videoElement: HTMLVideoElement
 ): Promise<void>;
+
+export function endSession(server: string): Promise<void>;
+export function onStats(callback: (stats: string) => void): void;
